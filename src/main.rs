@@ -1,7 +1,5 @@
 #![feature(iterator_find_map)]
 
-use std::num::Wrapping;
-
 #[derive(Debug, PartialEq)]
 enum ParseToken {
   IncrAddr,
@@ -13,9 +11,13 @@ enum ParseToken {
   Print,
 }
 
+#[derive(Debug, PartialEq)]
 enum ProgramToken {
   ChangeValue(i32),
-  ChangeAddress(i32),
+  ChangeAddr(i32),
+  LoopStart,
+  LoopEnd,
+  Print,
 }
 
 fn parse_program(program: &str) -> Vec<ParseToken> {
@@ -58,20 +60,38 @@ fn find_index_backwards<T: PartialEq>(haystack: &Vec<T>, starting_offset: usize,
   find_within_indices(haystack, (0..starting_offset).rev(), needle)
 }
 
-fn run_program(program: Vec<ParseToken>) {
-  let mut memory = vec![Wrapping(0u8); std::u16::MAX as usize];
-  let mut pointer = 0;
+fn optimize(tokens: Vec<ParseToken>) -> Vec<ProgramToken> {
+  let mut program = Vec::new();
+
+  for token in tokens {
+    program.push(match token {
+      ParseToken::IncrAddr => ProgramToken::ChangeAddr(1),
+      ParseToken::DecrAddr => ProgramToken::ChangeAddr(-1),
+      ParseToken::IncrValue => ProgramToken::ChangeValue(1),
+      ParseToken::DecrValue => ProgramToken::ChangeValue(-1),
+      ParseToken::LoopStart => ProgramToken::LoopStart,
+      ParseToken::LoopEnd => ProgramToken::LoopEnd,
+      ParseToken::Print => ProgramToken::Print
+    });
+  }
+
+  program
+}
+
+fn run_program(program: Vec<ProgramToken>) {
+  let mut memory = vec![0u8; std::u16::MAX as usize];
+  let mut pointer: u16 = 0;
   let mut instruction_pointer = 0;
+
+  use ProgramToken::*;
 
   while let Some(op) = program.get(instruction_pointer) {
     match op {
-      ParseToken::IncrAddr => pointer += 1,
-      ParseToken::DecrAddr => pointer -= 1,
-      ParseToken::IncrValue => memory[pointer] += Wrapping(1),
-      ParseToken::DecrValue => memory[pointer] -= Wrapping(1),
-      ParseToken::LoopStart => {
-        if memory[pointer] == Wrapping(0) {
-          if let Some(offset) = find_index(&program, instruction_pointer, &ParseToken::LoopEnd) {
+      ChangeAddr(by) => pointer = by.wrapping_add(pointer as i32) as u16,
+      ChangeValue(by) => memory[pointer as usize] = by.wrapping_add(memory[pointer as usize] as i32) as u8,
+      LoopStart => {
+        if memory[pointer as usize] == 0 {
+          if let Some(offset) = find_index(&program, instruction_pointer, &LoopEnd) {
             instruction_pointer = offset + 1;
             continue;
           } else {
@@ -79,9 +99,9 @@ fn run_program(program: Vec<ParseToken>) {
           }
         }
       },
-      ParseToken::LoopEnd => {
-        if memory[pointer] != Wrapping(0) {
-          if let Some(offset) = find_index_backwards(&program, instruction_pointer, &ParseToken::LoopStart) {
+      LoopEnd => {
+        if memory[pointer as usize] != 0 {
+          if let Some(offset) = find_index_backwards(&program, instruction_pointer, &LoopStart) {
           instruction_pointer = offset + 1;
           continue;
         } else {
@@ -89,8 +109,8 @@ fn run_program(program: Vec<ParseToken>) {
         }
       }
       },
-      ParseToken::Print => {
-        print!("{}", memory[pointer].0 as char);
+      Print => {
+        print!("{}", memory[pointer as usize] as char);
       }
     }
     instruction_pointer += 1;
@@ -100,5 +120,6 @@ fn run_program(program: Vec<ParseToken>) {
 fn main() {
   let hello_world = "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.";
   let parsed_program = parse_program(hello_world);
-  run_program(parsed_program);
+  let optimized_program = optimize(parsed_program);
+  run_program(optimized_program);
 }
