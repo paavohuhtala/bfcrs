@@ -1,4 +1,9 @@
 #![feature(iterator_find_map)]
+#![feature(iterator_flatten)]
+
+mod utils;
+use utils::iter_utils::IterUtils;
+use utils::vec_utils::VecUtils;
 
 #[derive(Debug, PartialEq)]
 enum ParseToken {
@@ -11,7 +16,7 @@ enum ParseToken {
   Print,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum ProgramToken {
   ChangeValue(i32),
   ChangeAddr(i32),
@@ -36,46 +41,31 @@ fn parse_program(program: &str) -> Vec<ParseToken> {
     .collect()
 }
 
-fn find_within_indices<T: PartialEq>(haystack: &Vec<T>, indices: impl IntoIterator<Item = usize>, needle: &T) -> Option<usize> {
-  for i in indices {
-    match haystack.get(i) {
-      None => {
-        return None;
-      },
-      Some(x) if x == needle => {
-        return Some(i);
-      },
-      Some(_) => { }
+fn try_fuse(a: &ProgramToken, b: &ProgramToken) -> Option<ProgramToken> {
+  match (a, b) {
+    (ProgramToken::ChangeAddr(a), ProgramToken::ChangeAddr(b)) => {
+      Some(ProgramToken::ChangeAddr(a + b))
     }
+    (ProgramToken::ChangeValue(a), ProgramToken::ChangeValue(b)) => {
+      Some(ProgramToken::ChangeValue(a + b))
+    }
+    _ => None,
   }
-
-  return None;
-}
-
-fn find_index<T: PartialEq>(haystack: &Vec<T>, starting_offset: usize, needle: &T) -> Option<usize> {
-  find_within_indices(haystack, starting_offset..haystack.len(), needle)
-}
-
-fn find_index_backwards<T: PartialEq>(haystack: &Vec<T>, starting_offset: usize, needle: &T) -> Option<usize> {
-  find_within_indices(haystack, (0..starting_offset).rev(), needle)
 }
 
 fn optimize(tokens: Vec<ParseToken>) -> Vec<ProgramToken> {
-  let mut program = Vec::new();
+  let program_tokens = tokens.into_iter().map(|token| match token {
+    ParseToken::IncrAddr => ProgramToken::ChangeAddr(1),
+    ParseToken::DecrAddr => ProgramToken::ChangeAddr(-1),
+    ParseToken::IncrValue => ProgramToken::ChangeValue(1),
+    ParseToken::DecrValue => ProgramToken::ChangeValue(-1),
+    ParseToken::LoopStart => ProgramToken::LoopStart,
+    ParseToken::LoopEnd => ProgramToken::LoopEnd,
+    ParseToken::Print => ProgramToken::Print,
+  });
 
-  for token in tokens {
-    program.push(match token {
-      ParseToken::IncrAddr => ProgramToken::ChangeAddr(1),
-      ParseToken::DecrAddr => ProgramToken::ChangeAddr(-1),
-      ParseToken::IncrValue => ProgramToken::ChangeValue(1),
-      ParseToken::DecrValue => ProgramToken::ChangeValue(-1),
-      ParseToken::LoopStart => ProgramToken::LoopStart,
-      ParseToken::LoopEnd => ProgramToken::LoopEnd,
-      ParseToken::Print => ProgramToken::Print
-    });
-  }
-
-  program
+  let without_duplicates = program_tokens.fuse_to_vec(try_fuse);
+  without_duplicates
 }
 
 fn run_program(program: Vec<ProgramToken>) {
@@ -88,27 +78,29 @@ fn run_program(program: Vec<ProgramToken>) {
   while let Some(op) = program.get(instruction_pointer) {
     match op {
       ChangeAddr(by) => pointer = by.wrapping_add(pointer as i32) as u16,
-      ChangeValue(by) => memory[pointer as usize] = by.wrapping_add(memory[pointer as usize] as i32) as u8,
+      ChangeValue(by) => {
+        memory[pointer as usize] = by.wrapping_add(memory[pointer as usize] as i32) as u8
+      }
       LoopStart => {
         if memory[pointer as usize] == 0 {
-          if let Some(offset) = find_index(&program, instruction_pointer, &LoopEnd) {
+          if let Some(offset) = program.find_index(&LoopEnd, instruction_pointer) {
             instruction_pointer = offset + 1;
             continue;
           } else {
             panic!("Unmatched '['");
           }
         }
-      },
+      }
       LoopEnd => {
         if memory[pointer as usize] != 0 {
-          if let Some(offset) = find_index_backwards(&program, instruction_pointer, &LoopStart) {
-          instruction_pointer = offset + 1;
-          continue;
-        } else {
-          panic!("Unmatched ']'");
+          if let Some(offset) = program.find_index_backwards(&LoopStart, instruction_pointer) {
+            instruction_pointer = offset + 1;
+            continue;
+          } else {
+            panic!("Unmatched ']'");
+          }
         }
       }
-      },
       Print => {
         print!("{}", memory[pointer as usize] as char);
       }
@@ -121,5 +113,6 @@ fn main() {
   let hello_world = "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.";
   let parsed_program = parse_program(hello_world);
   let optimized_program = optimize(parsed_program);
+  println!("{:?}", optimized_program);
   run_program(optimized_program);
 }
