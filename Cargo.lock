@@ -1,4 +1,21 @@
 [[package]]
 name = "bfcrs"
 version = "0.1.0"
+dependencies = [
+ "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "leb128 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
+[[package]]
+name = "byteorder"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "leb128"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[metadata]
+"checksum byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "74c0b906e9446b0a2e4f760cdb3fa4b2c48cdc6db8766a845c54b6ff063fd2e9"
+"checksum leb128 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "667858d20b00532d1f54049323beb1e352df59664d16aa9c2de8a9e257d1e994"

@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["paavohuhtala <paavo.huhtala@gmail.com>"]
 
 [dependencies]
+leb128 = "0.2.3"
+byteorder = "1"
