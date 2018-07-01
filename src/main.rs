@@ -56,7 +56,7 @@ fn main() {
 
   create_dir_all("./bin").unwrap();
 
-  let output_path = Path::new("./bin").join("out.wasmb");
+  let output_path = Path::new("./bin").join("out.wasm");
 
   let mut output_file = OpenOptions::new()
     .write(true)
