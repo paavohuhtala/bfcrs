@@ -7,6 +7,7 @@ extern crate leb128;
 mod utils;
 
 mod parser;
+use interpreter::ConsoleIo;
 use parser::parse_program;
 
 mod optimizer;
@@ -65,7 +66,7 @@ fn main() {
     .open(output_path)
     .unwrap();
 
-  run_program(optimized_program.clone());
+  run_program(optimized_program.clone(), &mut ConsoleIo);
 
   let wasm_backend = WasmBackend;
   wasm_backend.compile_to_stream(optimized_program, &mut output_file);

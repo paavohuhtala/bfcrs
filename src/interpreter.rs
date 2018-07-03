@@ -1,9 +1,29 @@
 use std;
+use std::io::Read;
 
 use utils::vec_utils::VecUtils;
 use ProgramToken;
 
-pub fn run_program(program: Vec<ProgramToken>) {
+pub trait BfIo {
+  fn print(&mut self, ch: u8);
+  fn read(&mut self) -> u8;
+}
+
+pub struct ConsoleIo;
+
+impl BfIo for ConsoleIo {
+  fn print(&mut self, ch: u8) {
+    print!("{}", ch as char);
+  }
+
+  fn read(&mut self) -> u8 {
+    let mut buffer = [0u8];
+    std::io::stdin().read_exact(&mut buffer).unwrap();
+    buffer[0]
+  }
+}
+
+pub fn run_program(program: Vec<ProgramToken>, io: &mut impl BfIo) {
   let mut memory = vec![0u8; std::u16::MAX as usize];
   let mut pointer: u16 = 0;
   let mut instruction_pointer = 0;
@@ -36,9 +56,7 @@ pub fn run_program(program: Vec<ProgramToken>) {
           }
         }
       }
-      Print => {
-        print!("{}", memory[pointer as usize] as char);
-      }
+      Print => io.print(memory[pointer as usize]),
     }
     instruction_pointer += 1;
   }
