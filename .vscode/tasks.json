@@ -19,6 +19,15 @@
       "problemMatcher": []
     },
     {
+      "label": "Benchmark in Node",
+      "type": "shell",
+      "windows": {
+        "command":
+          "Measure-Command { node ./wasm_test/index.js ./bin/out.wasm | Out-Host }"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Build and run in Node",
       "type": "shell",
       "windows": {

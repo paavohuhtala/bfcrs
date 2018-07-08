@@ -1,5 +1,6 @@
 #![feature(iterator_find_map)]
 #![feature(iterator_flatten)]
+#![feature(slice_patterns)]
 
 extern crate byteorder;
 extern crate leb128;
@@ -14,7 +15,7 @@ mod optimizer;
 use optimizer::optimize;
 
 mod interpreter;
-use interpreter::run_program;
+use interpreter::{run_program, State};
 
 mod backend;
 use backend::wasm::WasmBackend;
@@ -34,12 +35,13 @@ pub enum ParseToken {
   Print,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ProgramToken {
-  ChangeValue(i32),
-  ChangeAddr(i32),
-  LoopStart,
-  LoopEnd,
+  ChangeValue(i8),
+  ChangeAddr(isize),
+  ChangeOffset { addr_offset: isize, value: i8 },
+  Zero,
+  Loop(Vec<ProgramToken>),
   Print,
 }
 
@@ -49,7 +51,7 @@ fn main() {
     .get(1)
     .map(|arg| arg.to_string())
     .unwrap_or_else(|| "./bf/hello.bf".to_string());
-  let src = read_to_string(src_file).expect("File source file should exist.");
+  let src = read_to_string(src_file).expect("Source file should exist.");
 
   let parsed_program = parse_program(&src);
   let optimized_program = optimize(parsed_program);
@@ -66,7 +68,11 @@ fn main() {
     .open(output_path)
     .unwrap();
 
-  run_program(optimized_program.clone(), &mut ConsoleIo);
+  run_program(
+    &optimized_program.clone(),
+    &mut State::new(),
+    &mut ConsoleIo,
+  );
 
   let wasm_backend = WasmBackend;
   wasm_backend.compile_to_stream(optimized_program, &mut output_file);

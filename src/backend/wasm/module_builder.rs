@@ -1,3 +1,4 @@
+use backend::wasm::code_stream::LocalHandle;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 use std::error::Error;
@@ -117,53 +118,94 @@ impl WasmModule {
 
   fn write_code_section(
     stream: &mut impl Write,
-    tokens: Vec<ProgramToken>,
+    tokens: &[ProgramToken],
   ) -> Result<(), Box<Error>> {
     let mut code: Vec<u8> = Vec::new();
-
     {
       let mut writer = CodeStreamWriter::new(&mut code);
       let pointer = writer.declare_local(WasmType::I32);
 
       use self::Instruction::*;
 
-      for token in tokens {
-        match token {
-          ProgramToken::ChangeValue(by) => {
-            writer.emit(GetLocal(pointer))?;
-            writer.emit(GetLocal(pointer))?;
-            writer.emit(Load8Unsigned(0))?;
-            writer.emit(PushI32(by))?;
-            writer.emit(AddI32)?;
-            writer.emit(Store8(0))?;
+      fn write_tokens<T: Write>(
+        writer: &mut CodeStreamWriter<T>,
+        tokens: &[ProgramToken],
+        pointer: LocalHandle,
+      ) -> Result<(), Box<Error>> {
+        for token in tokens {
+          match token {
+            ProgramToken::ChangeValue(by) => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(Load8Unsigned(0))?;
+              writer.emit(PushI32(*by as i32))?;
+              writer.emit(AddI32)?;
+              writer.emit(Store8(0))?;
+            }
+            ProgramToken::ChangeAddr(by) => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(*by as i32))?;
+              writer.emit(AddI32)?;
+              writer.emit(SetLocal(pointer))?;
+            }
+            ProgramToken::ChangeOffset { addr_offset, value } => {
+              // Compute address
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(*addr_offset as i32))?;
+              writer.emit(AddI32)?;
+
+              // Compute value
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(Load8Unsigned(0))?;
+              writer.emit(PushI32(*value as i32))?;
+              writer.emit(AddI32)?;
+
+              // Store result
+              writer.emit(Store8(0))?;
+            }
+            ProgramToken::Print => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(Load8Unsigned(0))?;
+              writer.emit(Call(0))?;
+            }
+            ProgramToken::Zero => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(0))?;
+              writer.emit(Store8(0))?;
+            }
+            ProgramToken::Loop(body) => {
+              // This is essentially compiled into the following pseudocode:
+              // if memory[pointer] != 0 {
+              //   do {
+              //     * stuff*
+              //   } while memory[pointer != 0]
+              // }
+
+              writer.emit(Block)?;
+
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(Load8Unsigned(0))?;
+              writer.emit(EqualsZeroI32)?;
+              writer.emit(BranchIf(0))?;
+
+              writer.emit(Loop)?;
+
+              write_tokens(writer, &body, pointer)?;
+
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(Load8Unsigned(0))?;
+              writer.emit(BranchIf(0))?;
+
+              writer.emit(End)?;
+              writer.emit(End)?;
+            }
+            _ => panic!(),
           }
-          ProgramToken::ChangeAddr(by) => {
-            writer.emit(GetLocal(pointer))?;
-            writer.emit(PushI32(by))?;
-            writer.emit(AddI32)?;
-            writer.emit(SetLocal(pointer))?;
-          }
-          ProgramToken::Print => {
-            writer.emit(GetLocal(pointer))?;
-            writer.emit(Load8Unsigned(0))?;
-            writer.emit(Call(0))?;
-          }
-          ProgramToken::LoopStart => {
-            writer.emit(Loop)?;
-            writer.emit(GetLocal(pointer))?;
-            writer.emit(Load8Unsigned(0))?;
-            writer.emit(EqualsZeroI32)?;
-            writer.emit(BranchIf(0))?;
-          }
-          ProgramToken::LoopEnd => {
-            writer.emit(GetLocal(pointer))?;
-            writer.emit(Load8Unsigned(0))?;
-            writer.emit(BranchIf(0))?;
-            writer.emit(End)?;
-          }
-          _ => panic!(),
         }
+        Ok(())
       }
+
+      write_tokens(&mut writer, tokens, pointer)?;
 
       writer.emit(Instruction::End)?;
     }
@@ -203,7 +245,7 @@ impl WasmModule {
     Self::write_function_section(stream)?;
     Self::write_memory_section(stream, 1)?;
     Self::write_export_section(stream)?;
-    Self::write_code_section(stream, tokens)?;
+    Self::write_code_section(stream, &tokens)?;
 
     Ok(())
   }

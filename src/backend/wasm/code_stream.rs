@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::io::Write;
 
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::WriteBytesExt;
 use leb128;
 
 use backend::wasm::module_builder::WasmType;
@@ -17,6 +17,7 @@ pub enum Instruction {
   BranchIf(u32),
   EqualsZeroI32,
   Loop,
+  Block,
   End,
   Drop,
 }
@@ -79,6 +80,14 @@ impl<'a, T: Write + 'a> CodeStreamWriter<'a, T> {
     handle
   }
 
+  pub fn emit_print_string(&mut self, s: &str) -> Result<(), Box<Error>> {
+    for b in s.bytes() {
+      self.emit(Instruction::PushI32(b as i32))?;
+      self.emit(Instruction::Call(0))?;
+    }
+    Ok(())
+  }
+
   pub fn emit(&mut self, op: Instruction) -> Result<(), Box<Error>> {
     use self::Instruction::*;
 
@@ -122,6 +131,10 @@ impl<'a, T: Write + 'a> CodeStreamWriter<'a, T> {
       Loop => {
         self.stream.write_u8(0x03)?;
         // Loops can return values, but 0x40 indicates this one doesn't.
+        self.stream.write_u8(0x40)?;
+      }
+      Block => {
+        self.stream.write_u8(0x02)?;
         self.stream.write_u8(0x40)?;
       }
       End => {
