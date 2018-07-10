@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use backend::Backend;
-use ProgramToken;
+use types::ProgramToken;
 
 pub mod code_stream;
 mod module_builder;

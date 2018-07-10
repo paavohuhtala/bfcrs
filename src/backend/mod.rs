@@ -1,5 +1,5 @@
 use std::io::Write;
-use ProgramToken;
+use types::ProgramToken;
 
 pub mod wasm;
 

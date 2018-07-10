@@ -3,6 +3,14 @@ name = "bfcrs"
 version = "0.1.0"
 authors = ["paavohuhtala <paavo.huhtala@gmail.com>"]
 
+[lib]
+name = "bfcrs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bfcrsc"
+path = "src/main.rs"
+
 [dependencies]
 leb128 = "0.2.3"
 byteorder = "1"

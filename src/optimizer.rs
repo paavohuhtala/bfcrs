@@ -1,5 +1,4 @@
-use ParseToken;
-use ProgramToken;
+use types::{ParseToken, ProgramToken};
 
 fn merge_instructions(all_tokens: &Vec<ProgramToken>) -> Vec<ProgramToken> {
   let mut results: Vec<ProgramToken> = Vec::with_capacity(all_tokens.len());

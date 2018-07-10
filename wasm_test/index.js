@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const child_process = require("child_process");
 
 const binaryPath = process.argv[2];
 const buffer = fs.readFileSync(path.resolve(__dirname, "../", binaryPath));

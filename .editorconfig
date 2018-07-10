@@ -1,3 +1,6 @@
 [*.rs]
 indent_style = space
 indent_size = 2
+
+[*.bf.out]
+end_of_line = lf

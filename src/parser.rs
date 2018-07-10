@@ -1,4 +1,4 @@
-use ParseToken;
+use types::ParseToken;
 
 pub fn parse_program(program: &str) -> Vec<ParseToken> {
   program

@@ -1,49 +1,14 @@
-#![feature(iterator_find_map)]
-#![feature(iterator_flatten)]
-#![feature(slice_patterns)]
-
-extern crate byteorder;
-extern crate leb128;
-
-mod utils;
-
-mod parser;
-use interpreter::ConsoleIo;
-use parser::parse_program;
-
-mod optimizer;
-use optimizer::optimize;
-
-mod interpreter;
-use interpreter::{run_program, State};
-
-mod backend;
-use backend::wasm::WasmBackend;
-use backend::Backend;
+extern crate bfcrs;
 
 use std::fs::{create_dir_all, read_to_string, OpenOptions};
 use std::path::Path;
 
-#[derive(Debug, PartialEq)]
-pub enum ParseToken {
-  IncrAddr,
-  DecrAddr,
-  IncrValue,
-  DecrValue,
-  LoopStart,
-  LoopEnd,
-  Print,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ProgramToken {
-  ChangeValue(i8),
-  ChangeAddr(isize),
-  ChangeOffset { addr_offset: isize, value: i8 },
-  Zero,
-  Loop(Vec<ProgramToken>),
-  Print,
-}
+use bfcrs::backend::wasm::WasmBackend;
+use bfcrs::backend::Backend;
+use bfcrs::interpreter::ConsoleIo;
+use bfcrs::interpreter::{run_program, State};
+use bfcrs::optimizer::optimize;
+use bfcrs::parser::parse_program;
 
 fn main() {
   let args: Vec<String> = std::env::args().collect();

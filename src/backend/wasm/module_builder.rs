@@ -1,11 +1,11 @@
-use backend::wasm::code_stream::LocalHandle;
-use byteorder::{LittleEndian, WriteBytesExt};
-
 use std::error::Error;
 use std::io::Write;
-use ProgramToken;
 
+use byteorder::{LittleEndian, WriteBytesExt};
+
+use backend::wasm::code_stream::LocalHandle;
 use backend::wasm::code_stream::{CodeStreamExt, CodeStreamWriter, Instruction};
+use types::{ParseToken, ProgramToken};
 
 pub struct WasmModule;
 

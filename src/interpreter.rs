@@ -1,7 +1,7 @@
 use std;
 use std::io::Read;
 
-use ProgramToken;
+use types::ProgramToken;
 
 pub trait BfIo {
   fn print(&mut self, ch: u8);
@@ -39,7 +39,7 @@ impl State {
 pub fn run_program(program: &[ProgramToken], state: &mut State, io: &mut impl BfIo) {
   let mut instruction_pointer = 0;
 
-  use ProgramToken::*;
+  use types::ProgramToken::*;
 
   while let Some(op) = program.get(instruction_pointer) {
     match op {

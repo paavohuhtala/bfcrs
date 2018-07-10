@@ -1,0 +1,17 @@
+{
+  "name": "wasm_test_runner",
+  "description": "Remove code execution as a service.",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "nodemon": "^1.17.5"
+  },
+  "devDependencies": {
+    "@types/node": "^10.5.2"
+  },
+  "scripts": {
+    "start": "node ./index.js",
+    "start:watch": "nodemon --watch ./*.js index.js"
+  }
+}
