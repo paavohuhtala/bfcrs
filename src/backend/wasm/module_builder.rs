@@ -5,7 +5,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 
 use backend::wasm::code_stream::LocalHandle;
 use backend::wasm::code_stream::{CodeStreamExt, CodeStreamWriter, Instruction};
-use types::{ParseToken, ProgramToken};
+use types::ProgramToken;
 
 pub struct WasmModule;
 
@@ -238,7 +238,7 @@ impl WasmModule {
 
   pub fn write_to_stream(
     stream: &mut impl Write,
-    tokens: Vec<ProgramToken>,
+    tokens: &[ProgramToken],
   ) -> Result<(), Box<Error>> {
     Self::write_header(stream)?;
     Self::write_types_and_imports(stream)?;

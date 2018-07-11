@@ -19,6 +19,6 @@ pub fn compile_program(source: &str) -> Vec<u8> {
 
   let backend = backend::wasm::WasmBackend;
   use backend::Backend;
-  backend.compile_to_stream(optimized, &mut code);
+  backend.compile_to_stream(&optimized, &mut code);
   code
 }
