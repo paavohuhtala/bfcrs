@@ -1,0 +1,7 @@
+language: rust
+rust: 
+  - nightly
+env:
+  - NODE_VERSION="10.6.0"
+before_install:
+  - nvm install $NODE_VERSION
