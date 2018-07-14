@@ -1,10 +1,10 @@
 use types::{ParseToken, ProgramToken};
 
-fn merge_instructions(all_tokens: &Vec<ProgramToken>) -> Vec<ProgramToken> {
+fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
   let mut results: Vec<ProgramToken> = Vec::with_capacity(all_tokens.len());
 
   let mut prev = None;
-  let mut tokens = all_tokens.as_slice();
+  let mut tokens = all_tokens;
 
   while tokens.len() > 0 || prev.is_some() {
     let (new_prev, new_tokens): (Option<ProgramToken>, &[ProgramToken]) = match (&prev, tokens) {
@@ -18,13 +18,16 @@ fn merge_instructions(all_tokens: &Vec<ProgramToken>) -> Vec<ProgramToken> {
       /*(
         Some(ProgramToken::ChangeAddr(addr_offset_a)),
         [ProgramToken::ChangeValue(value), ProgramToken::ChangeAddr(addr_offset_b), tail..],
-      ) if addr_offset_b + addr_offset_a == 0 =>
+      )
+        if addr_offset_a + addr_offset_b == 0 =>
       {
-        prev = Some(ProgramToken::ChangeOffset {
-          addr_offset: *addr_offset_a,
-          value: *value,
-        });
-        tokens = tail;
+        (
+          Some(ProgramToken::ChangeOffset {
+            addr_offset: *addr_offset_a,
+            value: *value,
+          }),
+          tail,
+        )
       }*/
       (Some(ProgramToken::Loop(body)), rest) => match body.as_slice() {
         &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => (Some(ProgramToken::Zero), rest),
@@ -57,8 +60,12 @@ fn merge_instructions(all_tokens: &Vec<ProgramToken>) -> Vec<ProgramToken> {
   results
 }
 
-pub fn optimize(tokens: Vec<ParseToken>) -> Vec<ProgramToken> {
-  fn convert_tokens(offset: &mut usize, tokens: &Vec<ParseToken>, results: &mut Vec<ProgramToken>) {
+pub fn convert_tokens(all_tokens: &[ParseToken]) -> Vec<ProgramToken> {
+  fn convert_tokens_rec(
+    offset: &mut usize,
+    tokens: &[ParseToken],
+    results: &mut Vec<ProgramToken>,
+  ) {
     while *offset < tokens.len() {
       let token = &tokens[*offset];
 
@@ -71,7 +78,7 @@ pub fn optimize(tokens: Vec<ParseToken>) -> Vec<ProgramToken> {
           let mut inner_body = Vec::new();
           *offset += 1;
 
-          convert_tokens(offset, tokens, &mut inner_body);
+          convert_tokens_rec(offset, tokens, &mut inner_body);
           ProgramToken::Loop(inner_body)
         }
         ParseToken::LoopEnd => {
@@ -87,13 +94,21 @@ pub fn optimize(tokens: Vec<ParseToken>) -> Vec<ProgramToken> {
 
   let mut program = Vec::new();
   let mut offset = 0;
-  convert_tokens(&mut offset, &tokens, &mut program);
+  convert_tokens_rec(&mut offset, &all_tokens, &mut program);
 
-  if offset != tokens.len() {
+  if offset != all_tokens.len() {
     panic!("Malformed program.");
   }
 
-  merge_instructions(&program)
+  program
+}
+
+pub fn optimize(program: &[ProgramToken]) -> Vec<ProgramToken> {
+  merge_instructions(program)
+}
+
+pub fn optimize_parsed(tokens: &[ParseToken]) -> Vec<ProgramToken> {
+  optimize(&convert_tokens(tokens))
 }
 
 #[test]

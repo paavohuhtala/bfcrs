@@ -1,3 +1,5 @@
+use std::u16;
+
 #[derive(Debug, PartialEq)]
 pub enum ParseToken {
   IncrAddr,
@@ -17,4 +19,18 @@ pub enum ProgramToken {
   Zero,
   Loop(Vec<ProgramToken>),
   Print,
+}
+
+pub struct State {
+  pub pointer: usize,
+  pub memory: Vec<u8>,
+}
+
+impl State {
+  pub fn new() -> State {
+    State {
+      pointer: 0,
+      memory: vec![0u8; u16::MAX as usize],
+    }
+  }
 }

@@ -1,7 +1,7 @@
 use std;
 use std::io::Read;
 
-use types::ProgramToken;
+use types::{ProgramToken, State};
 
 pub trait BfIo {
   fn print(&mut self, ch: u8);
@@ -19,20 +19,6 @@ impl BfIo for ConsoleIo {
     let mut buffer = [0u8];
     std::io::stdin().read_exact(&mut buffer).unwrap();
     buffer[0]
-  }
-}
-
-pub struct State {
-  memory: Vec<u8>,
-  pointer: usize,
-}
-
-impl State {
-  pub fn new() -> State {
-    State {
-      memory: vec![0u8; std::u16::MAX as usize],
-      pointer: 0,
-    }
   }
 }
 

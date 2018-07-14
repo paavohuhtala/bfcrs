@@ -20,6 +20,7 @@ pub enum Instruction {
   Block,
   End,
   Drop,
+  Return,
 }
 
 pub trait CodeStreamExt {
@@ -142,6 +143,9 @@ impl<'a, T: Write + 'a> CodeStreamWriter<'a, T> {
       }
       Drop => {
         self.stream.write_u8(0x1A)?;
+      }
+      Return => {
+        self.stream.write_u8(0x0F)?;
       }
     }
 

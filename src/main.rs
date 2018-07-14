@@ -7,10 +7,11 @@ use std::path::Path;
 
 use bfcrs::backend::wasm::WasmBackend;
 use bfcrs::backend::Backend;
+use bfcrs::interpreter::run_program;
 use bfcrs::interpreter::ConsoleIo;
-use bfcrs::interpreter::{run_program, State};
-use bfcrs::optimizer::optimize;
+use bfcrs::optimizer::optimize_parsed;
 use bfcrs::parser::parse_program;
+use bfcrs::types::State;
 
 struct Config {
   compile: bool,
@@ -93,7 +94,7 @@ fn main() {
 
   println!("Optimizing...");
 
-  let optimized_program = optimize(parsed_program);
+  let optimized_program = optimize_parsed(&parsed_program);
 
   if config.print_ir {
     println!("IR: {:?}", &optimized_program);

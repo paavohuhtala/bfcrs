@@ -38,6 +38,18 @@
         "command": "cargo run && node ./wasm_test/index.js ./bin/out.wasm"
       },
       "problemMatcher": []
+    },
+    {
+      "label": "Build and run in both",
+      "type": "shell",
+      "windows": {
+        "command":
+          "cargo run -- --build-and-run; if($?) { node ./wasm_test/index.js ./bin/out.wasm }"
+      },
+      "osx": {
+        "command": "cargo run && node ./wasm_test/index.js ./bin/out.wasm"
+      },
+      "problemMatcher": []
     }
   ]
 }

@@ -1,7 +1,12 @@
+extern crate byteorder;
+
 use std::io::{Read, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use self::byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
+
+use bfcrs::compile_program;
+use bfcrs::types::State;
 
 pub struct NodeBridge {
   stdin: ChildStdin,
@@ -47,4 +52,39 @@ impl NodeBridge {
     let buffer = self.read_message();
     String::from_utf8(buffer).unwrap()
   }
+
+  pub fn read_state(&mut self) -> State {
+    let bytes = self.read_message();
+    let byte_slice = &bytes;
+    let (pointer_buf, memory) = byte_slice.split_at(4);
+    let pointer = LittleEndian::read_u32(pointer_buf) as usize;
+
+    State {
+      pointer,
+      memory: memory.to_vec(),
+    }
+  }
+}
+
+pub struct RunResult {
+  pub output: String,
+  pub state: State,
+}
+
+pub fn run_wasm(code: &[u8]) -> RunResult {
+  let mut bridge = NodeBridge::create();
+  bridge.send_message(&code);
+
+  let output = bridge.read_message_str();
+  let state = bridge.read_state();
+
+  // Send something so that Node knows we are done.
+  bridge.send_message(&[1]);
+
+  RunResult { output, state }
+}
+
+pub fn run_bf(source: &str) -> RunResult {
+  let code = compile_program(source);
+  run_wasm(&code)
 }
