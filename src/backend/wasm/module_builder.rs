@@ -199,7 +199,6 @@ impl WasmModule {
               writer.emit(End)?;
               writer.emit(End)?;
             }
-            _ => panic!(),
           }
         }
         Ok(())

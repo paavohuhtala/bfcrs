@@ -3,18 +3,16 @@ use types::{ParseToken, ProgramToken};
 fn merge_instructions(all_tokens: &Vec<ProgramToken>) -> Vec<ProgramToken> {
   let mut results: Vec<ProgramToken> = Vec::with_capacity(all_tokens.len());
 
-  let mut tokens = all_tokens.as_slice();
   let mut prev = None;
+  let mut tokens = all_tokens.as_slice();
 
   while tokens.len() > 0 || prev.is_some() {
-    match (&prev, tokens) {
+    let (new_prev, new_tokens): (Option<ProgramToken>, &[ProgramToken]) = match (&prev, tokens) {
       (Some(ProgramToken::ChangeAddr(a)), [ProgramToken::ChangeAddr(b), tail..]) => {
-        prev = Some(ProgramToken::ChangeAddr(a + b));
-        tokens = tail;
+        (Some(ProgramToken::ChangeAddr(a + b)), tail)
       }
       (Some(ProgramToken::ChangeValue(a)), [ProgramToken::ChangeValue(b), tail..]) => {
-        prev = Some(ProgramToken::ChangeValue(a + b));
-        tokens = tail;
+        (Some(ProgramToken::ChangeValue(a + b)), tail)
       }
       // Disabled until this is fixed in the WASM backend.
       /*(
@@ -29,43 +27,31 @@ fn merge_instructions(all_tokens: &Vec<ProgramToken>) -> Vec<ProgramToken> {
         tokens = tail;
       }*/
       (Some(ProgramToken::Loop(body)), rest) => match body.as_slice() {
-        &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => {
-          prev = Some(ProgramToken::Zero);
-          tokens = rest;
-        }
+        &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => (Some(ProgramToken::Zero), rest),
         _ => {
           results.push(ProgramToken::Loop(merge_instructions(body)));
 
           // This must be a separate check, because of pattern limitations.
           match rest {
-            [] => {
-              prev = None;
-              tokens = &[];
-            }
-            [head, tail..] => {
-              prev = Some(head.clone());
-              tokens = tail;
-            }
+            [] => (None, &[]),
+            [head, tail..] => (Some(head.clone()), tail),
           }
         }
       },
       (Some(token), []) => {
         results.push(token.clone());
-        prev = None;
+        (None, &[])
       }
-      (None, []) => {
-        unreachable!();
-      }
+      (None, []) => unreachable!(),
       (Some(ref token), [head, tail..]) => {
         results.push(token.clone());
-        prev = Some(head.clone());
-        tokens = tail;
+        (Some(head.clone()), tail)
       }
-      (None, [head, tail..]) => {
-        prev = Some(head.clone());
-        tokens = tail;
-      }
-    }
+      (None, [head, tail..]) => (Some(head.clone()), tail),
+    };
+
+    prev = new_prev;
+    tokens = new_tokens;
   }
 
   results
