@@ -1,5 +1,3 @@
-use std::u16;
-
 #[derive(Debug, PartialEq)]
 pub enum ParseToken {
   IncrAddr,
@@ -30,7 +28,7 @@ impl State {
   pub fn new() -> State {
     State {
       pointer: 0,
-      memory: vec![0u8; u16::MAX as usize],
+      memory: vec![0u8; 65536],
     }
   }
 }

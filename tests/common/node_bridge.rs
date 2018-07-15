@@ -5,8 +5,10 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use self::byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use bfcrs::compile_program;
-use bfcrs::types::State;
+use bfcrs::types::{ProgramToken, State};
+use bfcrs::{compile_program, compile_tokens};
+
+use common::types::RunResult;
 
 pub struct NodeBridge {
   stdin: ChildStdin,
@@ -66,12 +68,7 @@ impl NodeBridge {
   }
 }
 
-pub struct RunResult {
-  pub output: String,
-  pub state: State,
-}
-
-pub fn run_wasm(code: &[u8]) -> RunResult {
+pub fn run_wasm_in_node(code: &[u8]) -> RunResult {
   let mut bridge = NodeBridge::create();
   bridge.send_message(&code);
 
@@ -84,7 +81,12 @@ pub fn run_wasm(code: &[u8]) -> RunResult {
   RunResult { output, state }
 }
 
-pub fn run_bf(source: &str) -> RunResult {
+pub fn run_bf_in_node(source: &str) -> RunResult {
   let code = compile_program(source);
-  run_wasm(&code)
+  run_wasm_in_node(&code)
+}
+
+pub fn run_tokens_in_node(program: &[ProgramToken]) -> RunResult {
+  let code = compile_tokens(program, false);
+  run_wasm_in_node(&code)
 }
