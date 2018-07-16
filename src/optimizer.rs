@@ -96,6 +96,46 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
   results
 }
 
+fn postpone_moves(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
+  let mut results: Vec<ProgramToken> = Vec::with_capacity(all_tokens.len());
+  let mut i = 0;
+  let mut offset = 0;
+
+  while i < all_tokens.len() {
+    match all_tokens[i] {
+      ProgramToken::ChangeAddr(addr) => {
+        offset += addr;
+      }
+      ProgramToken::ChangeValue { addr_offset, value } => results.push(ProgramToken::ChangeValue {
+        addr_offset: addr_offset + offset,
+        value,
+      }),
+      ProgramToken::Loop(ref inner) => {
+        if offset != 0 {
+          results.push(ProgramToken::ChangeAddr(offset));
+          offset = 0;
+        }
+
+        results.push(ProgramToken::Loop(postpone_moves(&inner)));
+      }
+      ref other => {
+        if offset != 0 {
+          results.push(ProgramToken::ChangeAddr(offset));
+          offset = 0;
+        }
+        results.push(other.clone());
+      }
+    }
+    i += 1;
+  }
+
+  if offset != 0 {
+    results.push(ProgramToken::ChangeAddr(offset));
+  }
+
+  results
+}
+
 pub fn convert_tokens(all_tokens: &[ParseToken]) -> Vec<ProgramToken> {
   fn convert_tokens_rec(
     offset: &mut usize,
@@ -146,7 +186,18 @@ pub fn convert_tokens(all_tokens: &[ParseToken]) -> Vec<ProgramToken> {
 }
 
 pub fn optimize(program: &[ProgramToken]) -> Vec<ProgramToken> {
-  merge_instructions(program)
+  let mut tokens = program.to_vec();
+  let mut iterations = 0;
+
+  loop {
+    println!("Optimization round: {}", iterations + 1);
+    let optimized = postpone_moves(&merge_instructions(&tokens));
+    if optimized == tokens {
+      return optimized;
+    }
+    tokens = optimized;
+    iterations += 1;
+  }
 }
 
 pub fn optimize_parsed(tokens: &[ParseToken]) -> Vec<ProgramToken> {

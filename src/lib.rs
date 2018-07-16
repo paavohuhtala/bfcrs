@@ -9,6 +9,7 @@ pub mod backend;
 pub mod interpreter;
 pub mod optimizer;
 pub mod parser;
+pub mod pseudo_c_formatter;
 pub mod types;
 
 use types::ProgramToken;

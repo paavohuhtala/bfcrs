@@ -11,12 +11,14 @@ use bfcrs::interpreter::run_program;
 use bfcrs::interpreter::ConsoleIo;
 use bfcrs::optimizer::optimize_parsed;
 use bfcrs::parser::parse_program;
+use bfcrs::pseudo_c_formatter::print_as_c;
 use bfcrs::types::State;
 
 struct Config {
   compile: bool,
   run: bool,
   print_ir: bool,
+  print_c: bool,
   source_path: String,
   output_path: String,
 }
@@ -27,6 +29,7 @@ impl Default for Config {
       compile: true,
       run: false,
       print_ir: false,
+      print_c: false,
       source_path: "./bf/hello.bf".to_string(),
       output_path: "./bin/out.wasm".to_string(),
     }
@@ -56,6 +59,13 @@ fn parse_args<'a>(args: Vec<String>) -> Config {
         rest,
         Config {
           print_ir: true,
+          ..config
+        },
+      ),
+      &["--print-c", ref rest..] => parse_next(
+        rest,
+        Config {
+          print_c: true,
           ..config
         },
       ),
@@ -98,6 +108,10 @@ fn main() {
 
   if config.print_ir {
     println!("IR: {:?}", &optimized_program);
+  }
+
+  if config.print_c {
+    print_as_c(&optimized_program, String::new());
   }
 
   if config.compile {
