@@ -45,6 +45,7 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         (Some(ProgramToken::offs_set_value(*offs_a, *a)), tail)
       }
       (Some(Offset(offs_a, SetValue(_))), [Offset(offs_b, SetValue(a)), tail..])
+      | (Some(Offset(offs_a, ChangeValue(_))), [Offset(offs_b, SetValue(a)), tail..])
         if offs_a == offs_b =>
       {
         (Some(ProgramToken::offs_set_value(*offs_a, *a)), tail)
