@@ -10,7 +10,11 @@ use self::module_builder::WasmModule;
 pub struct WasmBackend;
 
 impl Backend for WasmBackend {
-  fn compile_to_stream(&self, tokens: &[ProgramToken], stream: &mut impl Write) {
+  fn extension(&self) -> &'static str {
+    ".wasm"
+  }
+
+  fn compile_to_stream(&self, tokens: &[ProgramToken], stream: &mut dyn Write) {
     WasmModule::write_to_stream(stream, tokens).unwrap();
   }
 }

@@ -35,7 +35,7 @@ impl ModuleBuilder {
 pub struct WasmModule;
 
 impl WasmModule {
-  fn write_header(stream: &mut impl Write) -> Result<(), Box<Error>> {
+  fn write_header(stream: &mut dyn Write) -> Result<(), Box<Error>> {
     // Magic
     stream.write_u32::<LittleEndian>(0x6d736100)?;
     // Version
@@ -44,7 +44,7 @@ impl WasmModule {
     Ok(())
   }
 
-  fn write_memory_section(stream: &mut impl Write, memory_size: u32) -> Result<(), Box<Error>> {
+  fn write_memory_section(mut stream: &mut dyn Write, memory_size: u32) -> Result<(), Box<Error>> {
     let mut memory_section: Vec<u8> = Vec::new();
     // memory.count
     memory_section.write_leb_u32(1);
@@ -60,7 +60,7 @@ impl WasmModule {
     Ok(())
   }
 
-  fn write_types_and_imports(stream: &mut impl Write) -> Result<(), Box<Error>> {
+  fn write_types_and_imports(mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
     let mut type_section: Vec<u8> = Vec::new();
     // There will be 3 signatures:
     type_section.write_u8(3)?;
@@ -114,7 +114,7 @@ impl WasmModule {
     Ok(())
   }
 
-  fn write_function_section(stream: &mut impl Write) -> Result<(), Box<Error>> {
+  fn write_function_section(mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
     // Functions
     let mut function_section: Vec<u8> = Vec::new();
     function_section.write_leb_u32(1);
@@ -127,7 +127,7 @@ impl WasmModule {
     Ok(())
   }
 
-  fn write_export_section(stream: &mut impl Write) -> Result<(), Box<Error>> {
+  fn write_export_section(mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
     let mut export_section: Vec<u8> = Vec::new();
     export_section.write_u8(2)?;
 
@@ -148,7 +148,7 @@ impl WasmModule {
   }
 
   fn write_code_section(
-    stream: &mut impl Write,
+    mut stream: &mut dyn Write,
     tokens: &[ProgramToken],
   ) -> Result<(), Box<Error>> {
     let mut code: Vec<u8> = Vec::new();
@@ -313,7 +313,7 @@ impl WasmModule {
   }
 
   pub fn write_to_stream(
-    stream: &mut impl Write,
+    stream: &mut dyn Write,
     tokens: &[ProgramToken],
   ) -> Result<(), Box<Error>> {
     Self::write_header(stream)?;
