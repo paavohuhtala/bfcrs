@@ -32,12 +32,19 @@ pub fn inc_dec_negative_2() {
 
 #[test]
 pub fn zero_nop_1() {
-  run_and_expect_same_tokens(&[ChangeAddr(100), ChangeValue(-64), SetValue(0)]);
+  run_and_expect_same_tokens(&[
+    ChangeAddr(100),
+    ChangeValue {
+      addr_offset: 0,
+      value: 1,
+    },
+    SetValue(0),
+  ]);
 }
 
 #[test]
 pub fn change_offset_smoke_1() {
-  run_and_expect_same_tokens(&[ChangeOffset {
+  run_and_expect_same_tokens(&[ChangeValue {
     addr_offset: 1,
     value: 1,
   }]);
@@ -45,7 +52,7 @@ pub fn change_offset_smoke_1() {
 
 #[test]
 pub fn change_offset_smoke_2() {
-  run_and_expect_same_tokens(&[ChangeOffset {
+  run_and_expect_same_tokens(&[ChangeValue {
     addr_offset: 1,
     value: -1,
   }]);
@@ -54,23 +61,26 @@ pub fn change_offset_smoke_2() {
 #[test]
 pub fn change_offset_nop_1() {
   run_and_expect_same_tokens(&[
-    ChangeOffset {
+    ChangeValue {
       addr_offset: 1,
       value: 1,
     },
     ChangeAddr(1),
-    ChangeValue(-1),
+    ChangeValue {
+      addr_offset: 0,
+      value: -1,
+    },
   ]);
 }
 
 #[test]
 pub fn change_offset_nop_2() {
   run_and_expect_same_tokens(&[
-    ChangeOffset {
+    ChangeValue {
       addr_offset: 1,
       value: 1,
     },
-    ChangeOffset {
+    ChangeValue {
       addr_offset: 1,
       value: -1,
     },
@@ -80,11 +90,11 @@ pub fn change_offset_nop_2() {
 #[test]
 pub fn change_offset_nop_3() {
   run_and_expect_same_tokens(&[
-    ChangeOffset {
+    ChangeValue {
       addr_offset: 1,
       value: -1,
     },
-    ChangeOffset {
+    ChangeValue {
       addr_offset: 1,
       value: 1,
     },
@@ -95,7 +105,7 @@ pub fn change_offset_nop_3() {
 pub fn change_offset_negative_offset() {
   run_and_expect_same_tokens(&[
     ChangeAddr(1),
-    ChangeOffset {
+    ChangeValue {
       addr_offset: -1,
       value: 1,
     },

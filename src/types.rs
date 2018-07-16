@@ -11,9 +11,8 @@ pub enum ParseToken {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ProgramToken {
-  ChangeValue(i8),
   ChangeAddr(isize),
-  ChangeOffset { addr_offset: isize, value: i8 },
+  ChangeValue { addr_offset: isize, value: i8 },
   SetValue(i8),
   Loop(Vec<ProgramToken>),
   Print,

@@ -33,13 +33,8 @@ pub fn run_program(program: &[ProgramToken], state: &mut State, io: &mut impl Bf
         state.pointer = ((state.pointer as isize) + by) as usize;
         instruction_pointer += 1;
       }
-      ChangeValue(by) => {
-        state.memory[state.pointer] =
-          ((state.memory[state.pointer] as isize).checked_add(*by as isize))
-            .expect("Pointer shouldn't over- or underflow") as u8;
-        instruction_pointer += 1;
-      }
-      ChangeOffset { addr_offset, value } => {
+
+      ChangeValue { addr_offset, value } => {
         let address = (state.pointer as isize)
           .checked_add(*addr_offset as isize)
           .expect("Pointer shouldn't over- or underflow.") as usize;

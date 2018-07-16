@@ -11,18 +11,37 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
       (Some(ProgramToken::ChangeAddr(a)), [ProgramToken::ChangeAddr(b), tail..]) => {
         (Some(ProgramToken::ChangeAddr(a + b)), tail)
       }
-      (Some(ProgramToken::ChangeValue(a)), [ProgramToken::ChangeValue(b), tail..]) => {
-        (Some(ProgramToken::ChangeValue(a + b)), tail)
+      (
+        Some(ProgramToken::ChangeValue {
+          addr_offset: offs_a,
+          value: a,
+        }),
+        [ProgramToken::ChangeValue {
+          addr_offset: offs_b,
+          value: b,
+        }, tail..],
+      )
+        if offs_a == offs_b =>
+      {
+        (
+          Some(ProgramToken::ChangeValue {
+            addr_offset: *offs_a,
+            value: a + b,
+          }),
+          tail,
+        )
       }
-      // Disabled until this is fixed in the WASM backend.
       (
         Some(ProgramToken::ChangeAddr(addr_offset_a)),
-        [ProgramToken::ChangeValue(value), ProgramToken::ChangeAddr(addr_offset_b), tail..],
+        [ProgramToken::ChangeValue {
+          addr_offset: 0,
+          value,
+        }, ProgramToken::ChangeAddr(addr_offset_b), tail..],
       )
         if addr_offset_a + addr_offset_b == 0 =>
       {
         (
-          Some(ProgramToken::ChangeOffset {
+          Some(ProgramToken::ChangeValue {
             addr_offset: *addr_offset_a,
             value: *value,
           }),
@@ -30,7 +49,14 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         )
       }
       (Some(ProgramToken::Loop(body)), rest) => match body.as_slice() {
-        &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => (Some(ProgramToken::SetValue(0)), rest),
+        &[ProgramToken::ChangeValue {
+          addr_offset: 0,
+          value: x,
+        }]
+          if x.abs() > 0 =>
+        {
+          (Some(ProgramToken::SetValue(0)), rest)
+        }
         _ => {
           results.push(ProgramToken::Loop(merge_instructions(body)));
 
@@ -41,9 +67,13 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
           }
         }
       },
-      (Some(ProgramToken::SetValue(0)), [ProgramToken::ChangeValue(a), tail..]) => {
-        (Some(ProgramToken::SetValue(*a)), tail)
-      }
+      (
+        Some(ProgramToken::SetValue(0)),
+        [ProgramToken::ChangeValue {
+          addr_offset: 0,
+          value: a,
+        }, tail..],
+      ) => (Some(ProgramToken::SetValue(*a)), tail),
       (Some(ProgramToken::SetValue(_)), [ProgramToken::SetValue(a), tail..]) => {
         (Some(ProgramToken::SetValue(*a)), tail)
       }
@@ -78,8 +108,14 @@ pub fn convert_tokens(all_tokens: &[ParseToken]) -> Vec<ProgramToken> {
       let next = match token {
         ParseToken::IncrAddr => ProgramToken::ChangeAddr(1),
         ParseToken::DecrAddr => ProgramToken::ChangeAddr(-1),
-        ParseToken::IncrValue => ProgramToken::ChangeValue(1),
-        ParseToken::DecrValue => ProgramToken::ChangeValue(-1),
+        ParseToken::IncrValue => ProgramToken::ChangeValue {
+          addr_offset: 0,
+          value: 1,
+        },
+        ParseToken::DecrValue => ProgramToken::ChangeValue {
+          addr_offset: 0,
+          value: -1,
+        },
         ParseToken::LoopStart => {
           let mut inner_body = Vec::new();
           *offset += 1;
@@ -121,9 +157,15 @@ pub fn optimize_parsed(tokens: &[ParseToken]) -> Vec<ProgramToken> {
 fn single_ops_are_maintained() {
   let before = vec![
     ProgramToken::ChangeAddr(1),
-    ProgramToken::ChangeValue(1),
+    ProgramToken::ChangeValue {
+      addr_offset: 0,
+      value: 1,
+    },
     ProgramToken::ChangeAddr(1),
-    ProgramToken::ChangeValue(1),
+    ProgramToken::ChangeValue {
+      addr_offset: 0,
+      value: 1,
+    },
   ];
   let expected = before.clone();
   let after = merge_instructions(&before);
@@ -137,10 +179,22 @@ fn same_ops_are_merged() {
     ProgramToken::ChangeAddr(1),
     ProgramToken::ChangeAddr(1),
     ProgramToken::ChangeAddr(1),
-    ProgramToken::ChangeValue(1),
-    ProgramToken::ChangeValue(1),
+    ProgramToken::ChangeValue {
+      addr_offset: 0,
+      value: 1,
+    },
+    ProgramToken::ChangeValue {
+      addr_offset: 0,
+      value: 1,
+    },
   ];
-  let expected = vec![ProgramToken::ChangeAddr(3), ProgramToken::ChangeValue(2)];
+  let expected = vec![
+    ProgramToken::ChangeAddr(3),
+    ProgramToken::ChangeValue {
+      addr_offset: 0,
+      value: 2,
+    },
+  ];
   let after = merge_instructions(&before);
 
   assert_eq!(&expected, &after);
