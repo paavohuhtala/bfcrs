@@ -193,9 +193,9 @@ impl WasmModule {
               writer.emit(Load8Unsigned(0))?;
               writer.emit(Call(0))?;
             }
-            ProgramToken::Zero => {
+            ProgramToken::SetValue(value) => {
               writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(0))?;
+              writer.emit(PushI32(*value as i32))?;
               writer.emit(Store8(0))?;
             }
             ProgramToken::Loop(body) => {

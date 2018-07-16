@@ -14,7 +14,7 @@ pub enum ProgramToken {
   ChangeValue(i8),
   ChangeAddr(isize),
   ChangeOffset { addr_offset: isize, value: i8 },
-  Zero,
+  SetValue(i8),
   Loop(Vec<ProgramToken>),
   Print,
 }

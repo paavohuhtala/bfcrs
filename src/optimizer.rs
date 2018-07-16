@@ -30,7 +30,7 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         )
       }
       (Some(ProgramToken::Loop(body)), rest) => match body.as_slice() {
-        &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => (Some(ProgramToken::Zero), rest),
+        &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => (Some(ProgramToken::SetValue(0)), rest),
         _ => {
           results.push(ProgramToken::Loop(merge_instructions(body)));
 
@@ -41,6 +41,12 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
           }
         }
       },
+      (Some(ProgramToken::SetValue(0)), [ProgramToken::ChangeValue(a), tail..]) => {
+        (Some(ProgramToken::SetValue(*a)), tail)
+      }
+      (Some(ProgramToken::SetValue(_)), [ProgramToken::SetValue(a), tail..]) => {
+        (Some(ProgramToken::SetValue(*a)), tail)
+      }
       (Some(token), []) => {
         results.push(token.clone());
         (None, &[])

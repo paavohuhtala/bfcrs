@@ -21,6 +21,15 @@
       "problemMatcher": []
     },
     {
+      "label": "Disassemble to file",
+      "type": "shell",
+      "windows": {
+        "command":
+          "./util/windows/wasm-dis.exe ./bin/out.wasm | Out-File ./bin/out.wat"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run in Node",
       "type": "shell",
       "command": "node ./wasm_test/index.js ./bin/out.wasm",

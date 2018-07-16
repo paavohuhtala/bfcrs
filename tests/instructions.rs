@@ -32,7 +32,7 @@ pub fn inc_dec_negative_2() {
 
 #[test]
 pub fn zero_nop_1() {
-  run_and_expect_same_tokens(&[ChangeAddr(100), ChangeValue(-64), Zero]);
+  run_and_expect_same_tokens(&[ChangeAddr(100), ChangeValue(-64), SetValue(0)]);
 }
 
 #[test]
