@@ -13,6 +13,14 @@
       "problemMatcher": []
     },
     {
+      "label": "Disassemble",
+      "type": "shell",
+      "windows": {
+        "command": "./util/windows/wasm-dis.exe ./bin/out.wasm"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run in Node",
       "type": "shell",
       "command": "node ./wasm_test/index.js ./bin/out.wasm",

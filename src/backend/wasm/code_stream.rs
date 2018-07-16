@@ -9,6 +9,7 @@ use backend::wasm::module_builder::WasmType;
 pub enum Instruction {
   GetLocal(LocalHandle),
   SetLocal(LocalHandle),
+  Load8Signed(u32),
   Load8Unsigned(u32),
   Store8(u32),
   PushI32(i32),
@@ -104,6 +105,11 @@ impl<'a, T: Write + 'a> CodeStreamWriter<'a, T> {
       PushI32(value) => {
         self.stream.write_u8(0x41)?;
         self.stream.write_leb_i32(value);
+      }
+      Load8Signed(offset) => {
+        self.stream.write_u8(0x2C)?;
+        self.stream.write_leb_u32(0);
+        self.stream.write_leb_u32(offset);
       }
       Load8Unsigned(offset) => {
         self.stream.write_u8(0x2D)?;

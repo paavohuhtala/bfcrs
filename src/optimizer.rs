@@ -15,7 +15,7 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         (Some(ProgramToken::ChangeValue(a + b)), tail)
       }
       // Disabled until this is fixed in the WASM backend.
-      /*(
+      (
         Some(ProgramToken::ChangeAddr(addr_offset_a)),
         [ProgramToken::ChangeValue(value), ProgramToken::ChangeAddr(addr_offset_b), tail..],
       )
@@ -28,7 +28,7 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
           }),
           tail,
         )
-      }*/
+      }
       (Some(ProgramToken::Loop(body)), rest) => match body.as_slice() {
         &[ProgramToken::ChangeValue(x)] if x.abs() > 0 => (Some(ProgramToken::Zero), rest),
         _ => {
