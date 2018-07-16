@@ -217,8 +217,23 @@ impl WasmModule {
               writer.emit(Load8Unsigned(0))?;
               writer.emit(Call(0))?;
             }
-            ProgramToken::SetValue(value) => {
+            ProgramToken::SetValue {
+              addr_offset: 0,
+              value,
+            } => {
               writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(*value as i32))?;
+              writer.emit(Store8(0))?;
+            }
+            ProgramToken::SetValue { addr_offset, value } if *addr_offset > 0 => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(*value as i32))?;
+              writer.emit(Store8(*addr_offset as u32))?;
+            }
+            ProgramToken::SetValue { addr_offset, value } => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(*addr_offset as i32))?;
+              writer.emit(AddI32)?;
               writer.emit(PushI32(*value as i32))?;
               writer.emit(Store8(0))?;
             }

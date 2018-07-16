@@ -9,8 +9,8 @@ pub fn print_as_c(program: &[ProgramToken], indent: String) {
       ProgramToken::ChangeValue { addr_offset, value } => {
         println!("{}memory[pointer + {}] += {}", indent, addr_offset, value);
       }
-      ProgramToken::SetValue(value) => {
-        println!("{}memory[pointer] = {}", indent, value);
+      ProgramToken::SetValue { addr_offset, value } => {
+        println!("{}memory[pointer + {}] = {}", indent, addr_offset, value);
       }
       ProgramToken::Loop(inner) => {
         println!("{}while (memory[pointer]) {{", indent);

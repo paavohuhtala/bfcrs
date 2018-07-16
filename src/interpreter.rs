@@ -43,8 +43,12 @@ pub fn run_program(program: &[ProgramToken], state: &mut State, io: &mut impl Bf
           ((state.memory[address] as isize).wrapping_add(*value as isize)) as u8;
         instruction_pointer += 1;
       }
-      SetValue(value) => {
-        state.memory[state.pointer] = *value as u8;
+      SetValue { addr_offset, value } => {
+        let address = (state.pointer as isize)
+          .checked_add(*addr_offset as isize)
+          .expect("Pointer shouldn't over- or underflow.") as usize;
+
+        state.memory[address] = *value as u8;
         instruction_pointer += 1;
       }
       Loop(body) => {

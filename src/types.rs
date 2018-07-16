@@ -13,9 +13,24 @@ pub enum ParseToken {
 pub enum ProgramToken {
   ChangeAddr(isize),
   ChangeValue { addr_offset: isize, value: i8 },
-  SetValue(i8),
+  SetValue { addr_offset: isize, value: i8 },
   Loop(Vec<ProgramToken>),
   Print,
+}
+
+impl ProgramToken {
+  pub fn set_value(value: i8) -> ProgramToken {
+    ProgramToken::SetValue {
+      addr_offset: 0,
+      value: value,
+    }
+  }
+  pub fn offs_set_value(offset: isize, value: i8) -> ProgramToken {
+    ProgramToken::SetValue {
+      addr_offset: offset,
+      value: value,
+    }
+  }
 }
 
 pub struct State {

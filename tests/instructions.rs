@@ -1,5 +1,6 @@
 extern crate bfcrs;
 
+use bfcrs::types::ProgramToken;
 use bfcrs::types::ProgramToken::*;
 
 mod common;
@@ -38,7 +39,7 @@ pub fn zero_nop_1() {
       addr_offset: 0,
       value: 1,
     },
-    SetValue(0),
+    set_value(0),
   ]);
 }
 

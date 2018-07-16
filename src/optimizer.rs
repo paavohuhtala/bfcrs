@@ -55,7 +55,7 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         }]
           if x.abs() > 0 =>
         {
-          (Some(ProgramToken::SetValue(0)), rest)
+          (Some(ProgramToken::set_value(0)), rest)
         }
         _ => {
           results.push(ProgramToken::Loop(merge_instructions(body)));
@@ -68,14 +68,32 @@ fn merge_instructions(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         }
       },
       (
-        Some(ProgramToken::SetValue(0)),
+        Some(ProgramToken::SetValue {
+          addr_offset: offs_a,
+          value: 0,
+        }),
         [ProgramToken::ChangeValue {
-          addr_offset: 0,
+          addr_offset: offs_b,
           value: a,
         }, tail..],
-      ) => (Some(ProgramToken::SetValue(*a)), tail),
-      (Some(ProgramToken::SetValue(_)), [ProgramToken::SetValue(a), tail..]) => {
-        (Some(ProgramToken::SetValue(*a)), tail)
+      )
+        if offs_a == offs_b =>
+      {
+        (Some(ProgramToken::offs_set_value(*offs_a, *a)), tail)
+      }
+      (
+        Some(ProgramToken::SetValue {
+          addr_offset: offs_a,
+          value: _,
+        }),
+        [ProgramToken::SetValue {
+          addr_offset: offs_b,
+          value: a,
+        }, tail..],
+      )
+        if offs_a == offs_b =>
+      {
+        (Some(ProgramToken::offs_set_value(*offs_a, *a)), tail)
       }
       (Some(token), []) => {
         results.push(token.clone());
@@ -110,6 +128,9 @@ fn postpone_moves(all_tokens: &[ProgramToken]) -> Vec<ProgramToken> {
         addr_offset: addr_offset + offset,
         value,
       }),
+      ProgramToken::SetValue { addr_offset, value } => {
+        results.push(ProgramToken::offs_set_value(addr_offset + offset, value))
+      }
       ProgramToken::Loop(ref inner) => {
         if offset != 0 {
           results.push(ProgramToken::ChangeAddr(offset));
