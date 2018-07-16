@@ -1,4 +1,4 @@
-use types::ProgramToken;
+use types::{MemoryOp, ProgramToken};
 
 pub fn print_as_c(program: &[ProgramToken], indent: String) {
   for token in program {
@@ -6,19 +6,19 @@ pub fn print_as_c(program: &[ProgramToken], indent: String) {
       ProgramToken::ChangeAddr(offset) => {
         println!("{}pointer += {}", indent, offset);
       }
-      ProgramToken::ChangeValue { addr_offset, value } => {
-        println!("{}memory[pointer + {}] += {}", indent, addr_offset, value);
+      ProgramToken::Offset(offset, MemoryOp::ChangeValue(value)) => {
+        println!("{}memory[pointer + {}] += {}", indent, offset, value);
       }
-      ProgramToken::SetValue { addr_offset, value } => {
-        println!("{}memory[pointer + {}] = {}", indent, addr_offset, value);
+      ProgramToken::Offset(offset, MemoryOp::SetValue(value)) => {
+        println!("{}memory[pointer + {}] = {}", indent, offset, value);
+      }
+      ProgramToken::Offset(offset, MemoryOp::Print) => {
+        println!("{}print(memory[pointer + {}])", indent, offset);
       }
       ProgramToken::Loop(inner) => {
         println!("{}while (memory[pointer]) {{", indent);
         print_as_c(inner, indent.clone() + "  ");
         println!("{}}}", indent);
-      }
-      ProgramToken::Print => {
-        println!("{}print(memory[pointer])", indent);
       }
     }
   }

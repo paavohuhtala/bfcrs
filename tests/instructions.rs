@@ -1,5 +1,6 @@
 extern crate bfcrs;
 
+use bfcrs::types::MemoryOp::*;
 use bfcrs::types::ProgramToken;
 use bfcrs::types::ProgramToken::*;
 
@@ -35,80 +36,47 @@ pub fn inc_dec_negative_2() {
 pub fn zero_nop_1() {
   run_and_expect_same_tokens(&[
     ChangeAddr(100),
-    ChangeValue {
-      addr_offset: 0,
-      value: 1,
-    },
-    set_value(0),
+    ProgramToken::change_value(1),
+    ProgramToken::set_value(0),
   ]);
 }
 
 #[test]
 pub fn change_offset_smoke_1() {
-  run_and_expect_same_tokens(&[ChangeValue {
-    addr_offset: 1,
-    value: 1,
-  }]);
+  run_and_expect_same_tokens(&[ProgramToken::offs_change_value(1, 1)]);
 }
 
 #[test]
 pub fn change_offset_smoke_2() {
-  run_and_expect_same_tokens(&[ChangeValue {
-    addr_offset: 1,
-    value: -1,
-  }]);
+  run_and_expect_same_tokens(&[ProgramToken::offs_change_value(1, -1)]);
 }
 
 #[test]
 pub fn change_offset_nop_1() {
   run_and_expect_same_tokens(&[
-    ChangeValue {
-      addr_offset: 1,
-      value: 1,
-    },
+    ProgramToken::offs_change_value(1, 1),
     ChangeAddr(1),
-    ChangeValue {
-      addr_offset: 0,
-      value: -1,
-    },
+    ProgramToken::offs_change_value(0, -1),
   ]);
 }
 
 #[test]
 pub fn change_offset_nop_2() {
   run_and_expect_same_tokens(&[
-    ChangeValue {
-      addr_offset: 1,
-      value: 1,
-    },
-    ChangeValue {
-      addr_offset: 1,
-      value: -1,
-    },
+    ProgramToken::offs_change_value(1, 1),
+    ProgramToken::offs_change_value(1, -1),
   ]);
 }
 
 #[test]
 pub fn change_offset_nop_3() {
   run_and_expect_same_tokens(&[
-    ChangeValue {
-      addr_offset: 1,
-      value: -1,
-    },
-    ChangeValue {
-      addr_offset: 1,
-      value: 1,
-    },
+    ProgramToken::offs_change_value(1, -1),
+    ProgramToken::offs_change_value(1, 1),
   ]);
 }
 
 #[test]
 pub fn change_offset_negative_offset() {
-  run_and_expect_same_tokens(&[
-    ChangeAddr(1),
-    ChangeValue {
-      addr_offset: -1,
-      value: 1,
-    },
-  ]);
+  run_and_expect_same_tokens(&[ChangeAddr(1), ProgramToken::offs_change_value(-1, 1)]);
 }

@@ -10,26 +10,34 @@ pub enum ParseToken {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum ProgramToken {
-  ChangeAddr(isize),
-  ChangeValue { addr_offset: isize, value: i8 },
-  SetValue { addr_offset: isize, value: i8 },
-  Loop(Vec<ProgramToken>),
+pub enum MemoryOp {
+  ChangeValue(i8),
+  SetValue(i8),
   Print,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum ProgramToken {
+  ChangeAddr(isize),
+  Offset(isize, MemoryOp),
+  Loop(Vec<ProgramToken>),
+}
+
 impl ProgramToken {
-  pub fn set_value(value: i8) -> ProgramToken {
-    ProgramToken::SetValue {
-      addr_offset: 0,
-      value: value,
-    }
+  pub fn change_value(value: i8) -> ProgramToken {
+    ProgramToken::Offset(0, MemoryOp::ChangeValue(value))
   }
+
+  pub fn offs_change_value(offset: isize, value: i8) -> ProgramToken {
+    ProgramToken::Offset(offset, MemoryOp::ChangeValue(value))
+  }
+
+  pub fn set_value(value: i8) -> ProgramToken {
+    ProgramToken::Offset(0, MemoryOp::SetValue(value))
+  }
+
   pub fn offs_set_value(offset: isize, value: i8) -> ProgramToken {
-    ProgramToken::SetValue {
-      addr_offset: offset,
-      value: value,
-    }
+    ProgramToken::Offset(offset, MemoryOp::SetValue(value))
   }
 }
 

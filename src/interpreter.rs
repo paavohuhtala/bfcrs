@@ -25,41 +25,37 @@ impl BfIo for ConsoleIo {
 pub fn run_program(program: &[ProgramToken], state: &mut State, io: &mut impl BfIo) {
   let mut instruction_pointer = 0;
 
+  use types::MemoryOp::*;
   use types::ProgramToken::*;
 
   while let Some(op) = program.get(instruction_pointer) {
+    instruction_pointer += 1;
     match op {
       ChangeAddr(by) => {
         state.pointer = ((state.pointer as isize) + by) as usize;
-        instruction_pointer += 1;
-      }
-
-      ChangeValue { addr_offset, value } => {
-        let address = (state.pointer as isize)
-          .checked_add(*addr_offset as isize)
-          .expect("Pointer shouldn't over- or underflow.") as usize;
-
-        state.memory[address] =
-          ((state.memory[address] as isize).wrapping_add(*value as isize)) as u8;
-        instruction_pointer += 1;
-      }
-      SetValue { addr_offset, value } => {
-        let address = (state.pointer as isize)
-          .checked_add(*addr_offset as isize)
-          .expect("Pointer shouldn't over- or underflow.") as usize;
-
-        state.memory[address] = *value as u8;
-        instruction_pointer += 1;
       }
       Loop(body) => {
-        instruction_pointer += 1;
         while state.memory[state.pointer as usize] != 0 {
           run_program(body, state, io);
         }
       }
-      Print => {
-        io.print(state.memory[state.pointer as usize]);
-        instruction_pointer += 1;
+      Offset(offset, op) => {
+        let address = (state.pointer as isize)
+          .checked_add(*offset as isize)
+          .expect("Pointer shouldn't over- or underflow.") as usize;
+
+        match op {
+          ChangeValue(value) => {
+            state.memory[address] =
+              ((state.memory[address] as isize).wrapping_add(*value as isize)) as u8;
+          }
+          SetValue(value) => {
+            state.memory[address] = *value as u8;
+          }
+          Print => {
+            io.print(state.memory[address]);
+          }
+        }
       }
     }
   }

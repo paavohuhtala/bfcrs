@@ -5,7 +5,10 @@ use byteorder::{LittleEndian, WriteBytesExt};
 
 use backend::wasm::code_stream::LocalHandle;
 use backend::wasm::code_stream::{CodeStreamExt, CodeStreamWriter, Instruction};
-use types::ProgramToken;
+
+use types::MemoryOp::*;
+use types::ProgramToken::*;
+use types::{MemoryOp, ProgramToken};
 
 /*struct Section {
   id: u8,
@@ -162,16 +165,13 @@ impl WasmModule {
       ) -> Result<(), Box<Error>> {
         for token in tokens {
           match token {
-            ProgramToken::ChangeAddr(by) => {
+            ChangeAddr(by) => {
               writer.emit(GetLocal(pointer))?;
               writer.emit(PushI32(*by as i32))?;
               writer.emit(AddI32)?;
               writer.emit(SetLocal(pointer))?;
             }
-            ProgramToken::ChangeValue {
-              addr_offset: 0,
-              value,
-            } => {
+            Offset(0, ChangeValue(value)) => {
               writer.emit(GetLocal(pointer))?;
               writer.emit(GetLocal(pointer))?;
               writer.emit(Load8Unsigned(0))?;
@@ -180,7 +180,7 @@ impl WasmModule {
               writer.emit(Store8(0))?;
             }
             // If the offset is positive, we can take advantage of indexed load/store
-            ProgramToken::ChangeValue { addr_offset, value } if *addr_offset > 0 => {
+            Offset(addr_offset, ChangeValue(value)) if *addr_offset > 0 => {
               // Push the pointer in preparation for store
               writer.emit(GetLocal(pointer))?;
 
@@ -193,7 +193,7 @@ impl WasmModule {
               // Store result
               writer.emit(Store8(*addr_offset as u32))?;
             }
-            ProgramToken::ChangeValue { addr_offset, value } => {
+            Offset(addr_offset, ChangeValue(value)) => {
               // Compute address
               writer.emit(GetLocal(pointer))?;
               writer.emit(PushI32(*addr_offset as i32))?;
@@ -212,25 +212,35 @@ impl WasmModule {
               // Store result
               writer.emit(Store8(0))?;
             }
-            ProgramToken::Print => {
+            Offset(0, Print) => {
               writer.emit(GetLocal(pointer))?;
               writer.emit(Load8Unsigned(0))?;
               writer.emit(Call(0))?;
             }
-            ProgramToken::SetValue {
-              addr_offset: 0,
-              value,
-            } => {
+            Offset(addr_offset, Print) if *addr_offset > 0 => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(Load8Unsigned(*addr_offset as u32))?;
+              writer.emit(Call(0))?;
+            }
+            Offset(addr_offset, Print) => {
+              writer.emit(GetLocal(pointer))?;
+              writer.emit(PushI32(*addr_offset as i32))?;
+              writer.emit(AddI32)?;
+
+              writer.emit(Load8Unsigned(0))?;
+              writer.emit(Call(0))?;
+            }
+            Offset(0, SetValue(value)) => {
               writer.emit(GetLocal(pointer))?;
               writer.emit(PushI32(*value as i32))?;
               writer.emit(Store8(0))?;
             }
-            ProgramToken::SetValue { addr_offset, value } if *addr_offset > 0 => {
+            Offset(addr_offset, SetValue(value)) if *addr_offset > 0 => {
               writer.emit(GetLocal(pointer))?;
               writer.emit(PushI32(*value as i32))?;
               writer.emit(Store8(*addr_offset as u32))?;
             }
-            ProgramToken::SetValue { addr_offset, value } => {
+            Offset(addr_offset, SetValue(value)) => {
               writer.emit(GetLocal(pointer))?;
               writer.emit(PushI32(*addr_offset as i32))?;
               writer.emit(AddI32)?;
