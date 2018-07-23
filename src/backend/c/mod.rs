@@ -2,8 +2,7 @@ use std::io::Write;
 
 use backend::Backend;
 use types::MemoryOp::*;
-use types::ProgramToken::*;
-use types::{MemoryOp, ProgramToken};
+use types::ProgramToken;
 
 pub struct CBackend;
 

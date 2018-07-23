@@ -1,6 +1,5 @@
 extern crate bfcrs;
 
-use bfcrs::types::MemoryOp::*;
 use bfcrs::types::ProgramToken;
 use bfcrs::types::ProgramToken::*;
 

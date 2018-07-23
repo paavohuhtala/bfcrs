@@ -7,12 +7,11 @@ use backend::wasm::code_stream::LocalHandle;
 use backend::wasm::code_stream::{CodeStreamExt, CodeStreamWriter, Instruction};
 
 use types::MemoryOp::*;
+use types::ProgramToken;
 use types::ProgramToken::*;
-use types::{MemoryOp, ProgramToken};
 
-/*struct Section {
+struct Section {
   id: u8,
-  entries: u32,
   data: Vec<u8>,
 }
 
@@ -21,307 +20,315 @@ pub struct ModuleBuilder {
 }
 
 impl ModuleBuilder {
-  fn add_section(&mut self, section: Section) {
-    self.sections.push(section)
-  }
-
-  fn write_to_stream(self, stream: impl Write) {
-    for section in self.sections {
-
+  fn new() -> ModuleBuilder {
+    ModuleBuilder {
+      sections: Vec::new(),
     }
   }
-}*/
 
-pub struct WasmModule;
+  pub fn add_section(&mut self, id: u8, entries: &[Box<Fn(&mut dyn Write) -> ()>]) {
+    let mut data = Vec::new();
+    data.write_leb_u32(entries.len() as u32);
 
-impl WasmModule {
-  fn write_header(stream: &mut dyn Write) -> Result<(), Box<Error>> {
+    for entry_fn in entries {
+      entry_fn(&mut data);
+    }
+
+    self.sections.push(Section { id, data });
+  }
+
+  pub fn write_to_stream(mut self, mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
+    let sorted = self.sections.as_mut_slice();
+    sorted.sort_unstable_by_key(|x| x.id);
+
+    // Header:
     // Magic
     stream.write_u32::<LittleEndian>(0x6d736100)?;
     // Version
     stream.write_u32::<LittleEndian>(1)?;
 
-    Ok(())
-  }
-
-  fn write_memory_section(mut stream: &mut dyn Write, memory_size: u32) -> Result<(), Box<Error>> {
-    let mut memory_section: Vec<u8> = Vec::new();
-    // memory.count
-    memory_section.write_leb_u32(1);
-    // resizable_limits.flags
-    memory_section.write_u8(0)?;
-    // resizable_limits.initial
-    memory_section.write_leb_u32(memory_size);
-
-    stream.write_u8(5)?;
-    stream.write_leb_u32(memory_section.len() as u32);
-    stream.write(&memory_section)?;
-
-    Ok(())
-  }
-
-  fn write_types_and_imports(mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
-    let mut type_section: Vec<u8> = Vec::new();
-    // There will be 3 signatures:
-    type_section.write_u8(3)?;
-
-    // print
-    type_section.write_u8(0x60)?;
-    // One integer param
-    type_section.write_leb_u32(1);
-    type_section.write_u8(0x7F)?;
-    // Doesn't read anything
-    type_section.write_leb_u32(0);
-
-    // read
-    type_section.write_u8(0x60)?;
-    // No params
-    type_section.write_leb_u32(0);
-    // Returns an integer
-    type_section.write_leb_u32(1);
-    type_section.write_u8(0x7F)?;
-
-    // main
-    type_section.write_u8(0x60)?;
-    // No params
-    type_section.write_leb_u32(0);
-    // Returns the instruction pointer
-    type_section.write_leb_u32(1);
-    type_section.write_u8(0x7F)?;
-
-    stream.write_u8(1)?;
-    stream.write_leb_u32(type_section.len() as u32);
-    stream.write(&type_section)?;
-
-    let mut import_section: Vec<u8> = Vec::new();
-
-    import_section.write_u8(2)?;
-
-    import_section.write_str("bfcrs");
-    import_section.write_str("print");
-    import_section.write_u8(0)?;
-    import_section.write_leb_u32(0);
-
-    import_section.write_str("bfcrs");
-    import_section.write_str("read");
-    import_section.write_u8(0)?;
-    import_section.write_leb_u32(1);
-
-    stream.write_u8(2)?;
-    stream.write_leb_u32(import_section.len() as u32);
-    stream.write(&import_section)?;
-
-    Ok(())
-  }
-
-  fn write_function_section(mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
-    // Functions
-    let mut function_section: Vec<u8> = Vec::new();
-    function_section.write_leb_u32(1);
-    function_section.write_leb_u32(2);
-
-    stream.write_u8(3)?;
-    stream.write_leb_u32(function_section.len() as u32);
-    stream.write(&function_section)?;
-
-    Ok(())
-  }
-
-  fn write_export_section(mut stream: &mut dyn Write) -> Result<(), Box<Error>> {
-    let mut export_section: Vec<u8> = Vec::new();
-    export_section.write_u8(2)?;
-
-    export_section.write_str("main");
-    export_section.write_u8(0)?;
-    export_section.write_u8(2)?;
-
-    export_section.write_str("memory");
-    export_section.write_u8(2)?;
-    export_section.write_u8(0)?;
-
-    // Export
-    stream.write_u8(7)?;
-    stream.write_leb_u32(export_section.len() as u32);
-    stream.write(&export_section)?;
-
-    Ok(())
-  }
-
-  fn write_code_section(
-    mut stream: &mut dyn Write,
-    tokens: &[ProgramToken],
-  ) -> Result<(), Box<Error>> {
-    let mut code: Vec<u8> = Vec::new();
-    {
-      let mut writer = CodeStreamWriter::new(&mut code);
-      let pointer = writer.declare_local(WasmType::I32);
-
-      use self::Instruction::*;
-
-      fn write_tokens<T: Write>(
-        writer: &mut CodeStreamWriter<T>,
-        tokens: &[ProgramToken],
-        pointer: LocalHandle,
-      ) -> Result<(), Box<Error>> {
-        for token in tokens {
-          match token {
-            ChangeAddr(by) => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*by as i32))?;
-              writer.emit(AddI32)?;
-              writer.emit(SetLocal(pointer))?;
-            }
-            Offset(0, ChangeValue(value)) => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(Load8Unsigned(0))?;
-              writer.emit(PushI32(*value as i32))?;
-              writer.emit(AddI32)?;
-              writer.emit(Store8(0))?;
-            }
-            // If the offset is positive, we can take advantage of indexed load/store
-            Offset(addr_offset, ChangeValue(value)) if *addr_offset > 0 => {
-              // Push the pointer in preparation for store
-              writer.emit(GetLocal(pointer))?;
-
-              // Compute value
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(Load8Unsigned(*addr_offset as u32))?;
-              writer.emit(PushI32(*value as i32))?;
-              writer.emit(AddI32)?;
-
-              // Store result
-              writer.emit(Store8(*addr_offset as u32))?;
-            }
-            Offset(addr_offset, ChangeValue(value)) => {
-              // Compute address
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*addr_offset as i32))?;
-              writer.emit(AddI32)?;
-
-              // Why doesn't WASM have a DUP instruction?
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*addr_offset as i32))?;
-              writer.emit(AddI32)?;
-
-              // Compute value
-              writer.emit(Load8Unsigned(0))?;
-              writer.emit(PushI32(*value as i32))?;
-              writer.emit(AddI32)?;
-
-              // Store result
-              writer.emit(Store8(0))?;
-            }
-            Offset(0, Print) => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(Load8Unsigned(0))?;
-              writer.emit(Call(0))?;
-            }
-            Offset(addr_offset, Print) if *addr_offset > 0 => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(Load8Unsigned(*addr_offset as u32))?;
-              writer.emit(Call(0))?;
-            }
-            Offset(addr_offset, Print) => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*addr_offset as i32))?;
-              writer.emit(AddI32)?;
-
-              writer.emit(Load8Unsigned(0))?;
-              writer.emit(Call(0))?;
-            }
-            Offset(0, SetValue(value)) => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*value as i32))?;
-              writer.emit(Store8(0))?;
-            }
-            Offset(addr_offset, SetValue(value)) if *addr_offset > 0 => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*value as i32))?;
-              writer.emit(Store8(*addr_offset as u32))?;
-            }
-            Offset(addr_offset, SetValue(value)) => {
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(PushI32(*addr_offset as i32))?;
-              writer.emit(AddI32)?;
-              writer.emit(PushI32(*value as i32))?;
-              writer.emit(Store8(0))?;
-            }
-            ProgramToken::Loop(body) => {
-              // This is essentially compiled into the following pseudocode:
-              // if memory[pointer] != 0 {
-              //   do {
-              //     * stuff*
-              //   } while memory[pointer != 0]
-              // }
-
-              writer.emit(Block)?;
-
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(Load8Unsigned(0))?;
-              writer.emit(EqualsZeroI32)?;
-              writer.emit(BranchIf(0))?;
-
-              writer.emit(Loop)?;
-
-              write_tokens(writer, &body, pointer)?;
-
-              writer.emit(GetLocal(pointer))?;
-              writer.emit(Load8Unsigned(0))?;
-              writer.emit(BranchIf(0))?;
-
-              writer.emit(End)?;
-              writer.emit(End)?;
-            }
-          }
-        }
-        Ok(())
-      }
-
-      write_tokens(&mut writer, tokens, pointer)?;
-
-      writer.emit(Instruction::GetLocal(pointer))?;
-      writer.emit(Instruction::Return)?;
-
-      writer.emit(Instruction::End)?;
+    for section in sorted {
+      stream.write_u8(section.id)?;
+      stream.write_leb_u32(section.data.len() as u32);
+      stream.write(&section.data)?;
     }
 
-    let mut code_body: Vec<u8> = Vec::new();
-    // Number of locals
-    code_body.write_leb_u32(1);
-    // Number of locals of this type
-    code_body.write_leb_u32(1);
-    // Type of the local
-    code_body.write_u8(0x7F)?;
-
-    code_body.write(&code)?;
-
-    let mut code_entry: Vec<u8> = Vec::new();
-    code_entry.write_leb_u32(code_body.len() as u32);
-    code_entry.write(&code_body)?;
-
-    let mut code_section: Vec<u8> = Vec::new();
-    code_section.write_leb_u32(1);
-    code_section.write(&code_entry)?;
-
-    // Code
-    stream.write_u8(10)?;
-    stream.write_leb_u32(code_section.len() as u32);
-    stream.write(&code_section)?;
-
     Ok(())
   }
+}
 
+pub struct WasmModule;
+
+fn emit_token<T: Write>(
+  writer: &mut CodeStreamWriter<T>,
+  pointer: LocalHandle,
+  token: &ProgramToken,
+) -> Result<(), Box<Error>> {
+  use self::Instruction::*;
+
+  match token {
+    ChangeAddr(by) => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*by as i32))?;
+      writer.emit(AddI32)?;
+      writer.emit(SetLocal(pointer))?;
+    }
+    Offset(0, ChangeValue(value)) => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(Load8Unsigned(0))?;
+      writer.emit(PushI32(*value as i32))?;
+      writer.emit(AddI32)?;
+      writer.emit(Store8(0))?;
+    }
+    // If the offset is positive, we can take advantage of indexed load/store
+    Offset(addr_offset, ChangeValue(value)) if *addr_offset > 0 => {
+      // Push the pointer in preparation for store
+      writer.emit(GetLocal(pointer))?;
+
+      // Compute value
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(Load8Unsigned(*addr_offset as u32))?;
+      writer.emit(PushI32(*value as i32))?;
+      writer.emit(AddI32)?;
+
+      // Store result
+      writer.emit(Store8(*addr_offset as u32))?;
+    }
+    Offset(addr_offset, ChangeValue(value)) => {
+      // Compute address
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*addr_offset as i32))?;
+      writer.emit(AddI32)?;
+
+      // Why doesn't WASM have a DUP instruction?
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*addr_offset as i32))?;
+      writer.emit(AddI32)?;
+
+      // Compute value
+      writer.emit(Load8Unsigned(0))?;
+      writer.emit(PushI32(*value as i32))?;
+      writer.emit(AddI32)?;
+
+      // Store result
+      writer.emit(Store8(0))?;
+    }
+    Offset(0, Print) => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(Load8Unsigned(0))?;
+      writer.emit(Call(0))?;
+    }
+    Offset(addr_offset, Print) if *addr_offset > 0 => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(Load8Unsigned(*addr_offset as u32))?;
+      writer.emit(Call(0))?;
+    }
+    Offset(addr_offset, Print) => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*addr_offset as i32))?;
+      writer.emit(AddI32)?;
+
+      writer.emit(Load8Unsigned(0))?;
+      writer.emit(Call(0))?;
+    }
+    Offset(0, SetValue(value)) => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*value as i32))?;
+      writer.emit(Store8(0))?;
+    }
+    Offset(addr_offset, SetValue(value)) if *addr_offset > 0 => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*value as i32))?;
+      writer.emit(Store8(*addr_offset as u32))?;
+    }
+    Offset(addr_offset, SetValue(value)) => {
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(PushI32(*addr_offset as i32))?;
+      writer.emit(AddI32)?;
+      writer.emit(PushI32(*value as i32))?;
+      writer.emit(Store8(0))?;
+    }
+    ProgramToken::Loop(body) => {
+      // This is essentially compiled into the following pseudocode:
+      // if memory[pointer] != 0 {
+      //   do {
+      //     * stuff*
+      //   } while memory[pointer != 0]
+      // }
+
+      writer.emit(Block)?;
+
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(Load8Unsigned(0))?;
+      writer.emit(EqualsZeroI32)?;
+      writer.emit(BranchIf(0))?;
+
+      writer.emit(Loop)?;
+
+      for token in body {
+        emit_token(writer, pointer, token)?;
+      }
+
+      writer.emit(GetLocal(pointer))?;
+      writer.emit(Load8Unsigned(0))?;
+      writer.emit(BranchIf(0))?;
+
+      writer.emit(End)?;
+      writer.emit(End)?;
+    }
+  }
+  Ok(())
+}
+
+fn add_type_section(builder: &mut ModuleBuilder) {
+  builder.add_section(
+    1,
+    &[
+      // print
+      Box::new(|mut writer| {
+        writer.write_u8(0x60).unwrap();
+        // One integer param
+        writer.write_leb_u32(1);
+        writer.write_u8(0x7F).unwrap();
+        // Doesn't read anything
+        writer.write_leb_u32(0);
+      }),
+      // read
+      Box::new(|mut writer| {
+        writer.write_u8(0x60).unwrap();
+        // No params
+        writer.write_leb_u32(0);
+        // Returns an integer
+        writer.write_leb_u32(1);
+        writer.write_u8(0x7F).unwrap();
+      }),
+      // Main
+      Box::new(|mut writer| {
+        writer.write_u8(0x60).unwrap();
+        // No params
+        writer.write_leb_u32(0);
+        // Returns the instruction pointer
+        writer.write_leb_u32(1);
+        writer.write_u8(0x7F).unwrap();
+      }),
+    ],
+  )
+}
+
+fn add_import_section(builder: &mut ModuleBuilder) {
+  builder.add_section(
+    2,
+    &[
+      Box::new(|mut writer| {
+        writer.write_str("bfcrs");
+        writer.write_str("print");
+        writer.write_u8(0).unwrap();
+        writer.write_leb_u32(0);
+      }),
+      Box::new(|mut writer| {
+        writer.write_str("bfcrs");
+        writer.write_str("read");
+        writer.write_u8(0).unwrap();
+        writer.write_leb_u32(1);
+      }),
+    ],
+  );
+}
+
+fn add_memory_section(builder: &mut ModuleBuilder, page_count: u32) {
+  builder.add_section(
+    5,
+    &[Box::new(move |mut writer| {
+      // resizable_limits.flags
+      writer.write_u8(0).unwrap();
+      // resizable_limits.initial
+      writer.write_leb_u32(page_count);
+    })],
+  );
+}
+
+fn add_function_section(builder: &mut ModuleBuilder) {
+  builder.add_section(
+    3,
+    &[Box::new(|writer| {
+      writer.write_u8(2).unwrap();
+    })],
+  );
+}
+
+fn add_export_section(builder: &mut ModuleBuilder) {
+  builder.add_section(
+    7,
+    &[
+      Box::new(|mut writer| {
+        writer.write_str("main");
+        writer.write_u8(0).unwrap();
+        writer.write_u8(2).unwrap();
+      }),
+      Box::new(|mut writer| {
+        writer.write_str("memory");
+        writer.write_u8(2).unwrap();
+        writer.write_u8(0).unwrap();
+      }),
+    ],
+  );
+}
+
+fn add_code_section(builder: &mut ModuleBuilder, tokens: Vec<ProgramToken>) {
+  builder.add_section(
+    10,
+    &[Box::new(move |writer| {
+      let mut code: Vec<u8> = Vec::new();
+
+      {
+        let mut writer = CodeStreamWriter::new(&mut code);
+        let pointer = writer.declare_local(WasmType::I32);
+
+        for token in &tokens {
+          emit_token(&mut writer, pointer, token).unwrap();
+        }
+
+        writer.emit(Instruction::GetLocal(pointer)).unwrap();
+        writer.emit(Instruction::Return).unwrap();
+
+        writer.emit(Instruction::End).unwrap();
+      }
+
+      let mut code_body: Vec<u8> = Vec::new();
+      // Number of locals
+      code_body.write_leb_u32(1);
+      // Number of locals of this type
+      code_body.write_leb_u32(1);
+      // Type of the local
+      code_body.write_u8(0x7F).unwrap();
+
+      code_body.write(&code).unwrap();
+
+      let mut code_entry: Vec<u8> = Vec::new();
+      code_entry.write_leb_u32(code_body.len() as u32);
+      code_entry.write(&code_body).unwrap();
+
+      writer.write(&code_entry).unwrap();
+    })],
+  );
+}
+
+impl WasmModule {
   pub fn write_to_stream(
     stream: &mut dyn Write,
     tokens: &[ProgramToken],
   ) -> Result<(), Box<Error>> {
-    Self::write_header(stream)?;
-    Self::write_types_and_imports(stream)?;
-    Self::write_function_section(stream)?;
-    Self::write_memory_section(stream, 1)?;
-    Self::write_export_section(stream)?;
-    Self::write_code_section(stream, &tokens)?;
+    let mut builder = ModuleBuilder::new();
+
+    add_type_section(&mut builder);
+    add_import_section(&mut builder);
+    add_function_section(&mut builder);
+    add_memory_section(&mut builder, 1);
+    add_export_section(&mut builder);
+    add_code_section(&mut builder, tokens.to_vec());
+
+    builder.write_to_stream(stream)?;
 
     Ok(())
   }
